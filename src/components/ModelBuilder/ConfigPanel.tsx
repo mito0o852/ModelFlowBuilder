@@ -145,7 +145,7 @@ const ConfigPanel = ({
   };
 
   return (
-    <Card className="w-[320px] h-full bg-white overflow-auto z-10">
+    <Card className="w-[320px] h-full bg-white dark:bg-gray-800 overflow-auto z-10">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-lg">
           {selectedNode ? selectedNode.name : "Configuration"}

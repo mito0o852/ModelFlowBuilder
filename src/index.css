@@ -79,7 +79,7 @@
 /* Fix for component library and canvas */
 .neural-network-builder {
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: 64px 280px 1fr;
   height: 100vh;
   overflow: hidden;
 }

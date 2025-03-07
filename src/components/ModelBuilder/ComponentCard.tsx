@@ -1,5 +1,6 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
@@ -7,7 +8,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { Layers, Activity, GitBranch, Info } from "lucide-react";
+import { Layers, Activity, GitBranch, Info, Plus } from "lucide-react";
 
 interface ComponentCardProps {
   name: string;
@@ -35,18 +36,19 @@ const ComponentCard = ({
   return (
     <Card
       className={cn(
-        "cursor-grab active:cursor-grabbing bg-white hover:bg-gray-50 transition-colors",
+        "cursor-grab active:cursor-grabbing bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors",
         className,
       )}
       onClick={onClick}
-      draggable
+      draggable="true"
       onDragStart={(e) => {
         // Set data for drag operation
-        e.dataTransfer.setData(
-          "application/json",
-          JSON.stringify({ type: icon, name }),
-        );
-        // Optional: set a drag image
+        e.dataTransfer.effectAllowed = "move";
+        const data = JSON.stringify({ type: icon, name, description });
+        e.dataTransfer.setData("application/json", data);
+        console.log("Drag started with data:", data);
+
+        // Set a drag image
         const dragImage = document.createElement("div");
         dragImage.textContent = name;
         dragImage.className =
@@ -57,11 +59,15 @@ const ComponentCard = ({
       }}
     >
       <CardContent className="flex items-center p-4 h-full">
-        <div className="mr-3 p-2 rounded-md bg-primary/10">
-          {IconComponent && <IconComponent className="h-5 w-5 text-primary" />}
+        <div className="mr-3 p-2 rounded-md bg-primary/10 dark:bg-primary/20">
+          {IconComponent && (
+            <IconComponent className="h-5 w-5 text-primary dark:text-primary-foreground" />
+          )}
         </div>
         <div className="flex-1 overflow-hidden">
-          <h3 className="font-medium text-sm truncate max-w-full">{name}</h3>
+          <h3 className="font-medium text-sm truncate max-w-full text-foreground">
+            {name}
+          </h3>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -75,6 +81,26 @@ const ComponentCard = ({
             </Tooltip>
           </TooltipProvider>
         </div>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="ml-1 h-7 w-7 text-primary hover:bg-primary/10"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClick();
+                }}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p>Add to canvas</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </CardContent>
     </Card>
   );

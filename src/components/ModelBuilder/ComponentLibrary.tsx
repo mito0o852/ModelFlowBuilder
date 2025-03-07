@@ -129,6 +129,7 @@ const ComponentLibrary = ({
 
   // Handle component selection
   const handleComponentSelect = (component: any) => {
+    console.log("Component selected:", component);
     onComponentSelect({
       ...component,
       category: activeTab,
@@ -156,34 +157,30 @@ const ComponentLibrary = ({
         onValueChange={setActiveTab}
         className="flex-1 flex flex-col"
       >
-        <TabsList className="grid grid-cols-4 h-auto">
+        <TabsList className="grid grid-cols-4 h-auto mx-4 mt-2 mb-4">
           <TabsTrigger
             value="layers"
-            className="flex flex-col items-center py-2 px-1 h-auto"
+            className="flex items-center justify-center p-2 h-10"
           >
-            <Layers className="h-4 w-4 mb-1" />
-            <span className="text-xs whitespace-nowrap">Layers</span>
+            <Layers className="h-5 w-5" />
           </TabsTrigger>
           <TabsTrigger
             value="activations"
-            className="flex flex-col items-center py-2 px-1 h-auto"
+            className="flex items-center justify-center p-2 h-10"
           >
-            <Activity className="h-4 w-4 mb-1" />
-            <span className="text-xs whitespace-nowrap">Activations</span>
+            <Activity className="h-5 w-5" />
           </TabsTrigger>
           <TabsTrigger
             value="operations"
-            className="flex flex-col items-center py-2 px-1 h-auto"
+            className="flex items-center justify-center p-2 h-10"
           >
-            <GitBranch className="h-4 w-4 mb-1" />
-            <span className="text-xs whitespace-nowrap">Operations</span>
+            <GitBranch className="h-5 w-5" />
           </TabsTrigger>
           <TabsTrigger
             value="custom"
-            className="flex flex-col items-center py-2 px-1 h-auto"
+            className="flex items-center justify-center p-2 h-10"
           >
-            <Settings className="h-4 w-4 mb-1" />
-            <span className="text-xs whitespace-nowrap">Custom</span>
+            <Settings className="h-5 w-5" />
           </TabsTrigger>
         </TabsList>
 

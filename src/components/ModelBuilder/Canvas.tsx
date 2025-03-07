@@ -1,15 +1,25 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { Plus, Minus, Move, Trash2, Link, AlertCircle } from "lucide-react";
+import ReactFlow, {
+  Background,
+  Controls,
+  MiniMap,
+  Node,
+  Edge,
+  NodeTypes,
+  EdgeTypes,
+  Connection,
+  useNodesState,
+  useEdgesState,
+  addEdge,
+  MarkerType,
+  Handle,
+  Position,
+} from "react-flow-renderer";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Plus, Minus, Trash2 } from "lucide-react";
 
-interface Node {
+interface ModelNode {
   id: string;
   type: string;
   name: string;
@@ -19,7 +29,7 @@ interface Node {
   config?: Record<string, any>;
 }
 
-interface Connection {
+interface ModelConnection {
   id: string;
   sourceId: string;
   sourceOutput: string;
@@ -29,65 +39,110 @@ interface Connection {
 }
 
 interface CanvasProps {
-  nodes?: Node[];
-  connections?: Connection[];
+  nodes?: ModelNode[];
+  connections?: ModelConnection[];
   onNodeSelect?: (nodeId: string | null) => void;
-  onNodeAdd?: (node: Node) => void;
+  onNodeAdd?: (node: ModelNode) => void;
   onNodeRemove?: (nodeId: string) => void;
   onNodeMove?: (nodeId: string, position: { x: number; y: number }) => void;
-  onConnectionCreate?: (connection: Omit<Connection, "id" | "isValid">) => void;
+  onConnectionCreate?: (
+    connection: Omit<ModelConnection, "id" | "isValid">,
+  ) => void;
   onConnectionRemove?: (connectionId: string) => void;
   className?: string;
 }
 
+// Custom Node Component
+const CustomNode = ({
+  data,
+  selected,
+  id,
+}: {
+  data: any;
+  selected: boolean;
+  id: string;
+}) => {
+  const nodeTypeColors = {
+    input:
+      "bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800 text-blue-900 dark:text-blue-100",
+    layer:
+      "bg-purple-50 border-purple-200 dark:bg-purple-950 dark:border-purple-800 text-purple-900 dark:text-purple-100",
+    activation:
+      "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800 text-green-900 dark:text-green-100",
+    operation:
+      "bg-orange-50 border-orange-200 dark:bg-orange-950 dark:border-orange-800 text-orange-900 dark:text-orange-100",
+    default:
+      "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100",
+  };
+
+  const nodeColor = nodeTypeColors[data.type] || nodeTypeColors.default;
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (window.confirm("Are you sure you want to delete this node?")) {
+      if (data.onDelete) {
+        data.onDelete(id);
+      }
+    }
+  };
+
+  return (
+    <div
+      className={cn(
+        "p-4 w-[180px] rounded-md shadow-md transition-all duration-200 border relative",
+        nodeColor,
+        selected ? "ring-2 ring-primary shadow-lg border-primary" : "",
+      )}
+    >
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-sm font-medium truncate">{data.name}</h3>
+        <button
+          className="nodrag absolute top-2 right-2 p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500"
+          onClick={handleDelete}
+          type="button"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <div className="text-xs text-muted-foreground">
+        {data.config &&
+          Object.entries(data.config).map(([key, value]) => (
+            <div key={key} className="flex justify-between">
+              <span>{key}:</span>
+              <span className="font-mono">{JSON.stringify(value)}</span>
+            </div>
+          ))}
+      </div>
+
+      {/* Use proper ReactFlow Handle components for connections */}
+      {data.inputs && data.inputs.length > 0 && (
+        <Handle
+          type="target"
+          position={Position.Top}
+          id="input"
+          style={{ background: "#3b82f6", width: "10px", height: "10px" }}
+        />
+      )}
+      {data.outputs && data.outputs.length > 0 && (
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          id="output"
+          style={{ background: "#3b82f6", width: "10px", height: "10px" }}
+        />
+      )}
+    </div>
+  );
+};
+
+const nodeTypes: NodeTypes = {
+  custom: CustomNode,
+};
+
 const Canvas = ({
-  nodes = [
-    {
-      id: "input-1",
-      type: "input",
-      name: "Input Layer",
-      position: { x: 100, y: 150 },
-      inputs: [],
-      outputs: ["output"],
-      config: { dimensions: [1, 28, 28] },
-    },
-    {
-      id: "conv-1",
-      type: "layer",
-      name: "Conv2d",
-      position: { x: 350, y: 150 },
-      inputs: ["input"],
-      outputs: ["output"],
-      config: { in_channels: 1, out_channels: 32, kernel_size: 3 },
-    },
-    {
-      id: "relu-1",
-      type: "activation",
-      name: "ReLU",
-      position: { x: 600, y: 150 },
-      inputs: ["input"],
-      outputs: ["output"],
-      config: {},
-    },
-  ],
-  connections = [
-    {
-      id: "conn-1",
-      sourceId: "input-1",
-      sourceOutput: "output",
-      targetId: "conv-1",
-      targetInput: "input",
-      isValid: true,
-    },
-    {
-      id: "conn-2",
-      sourceId: "conv-1",
-      sourceOutput: "output",
-      targetId: "relu-1",
-      targetInput: "input",
-      isValid: true,
-    },
-  ],
+  nodes = [],
+  connections = [],
   onNodeSelect = () => {},
   onNodeAdd = () => {},
   onNodeRemove = () => {},
@@ -96,398 +151,245 @@ const Canvas = ({
   onConnectionRemove = () => {},
   className = "",
 }: CanvasProps) => {
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const [selectedNode, setSelectedNode] = useState<string | null>(null);
-  const [draggingNode, setDraggingNode] = useState<string | null>(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [creatingConnection, setCreatingConnection] = useState<{
-    sourceId: string;
-    sourceOutput: string;
-    position: { x: number; y: number };
-  } | null>(null);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
+  // Convert model nodes to ReactFlow nodes
+  const initialNodes: Node[] = nodes.map((node) => ({
+    id: node.id,
+    type: "custom",
+    position: node.position,
+    data: {
+      name: node.name,
+      type: node.type,
+      inputs: node.inputs,
+      outputs: node.outputs,
+      config: node.config,
+      onDelete: onNodeRemove,
+    },
+    sourcePosition: "bottom",
+    targetPosition: "top",
+    connectable: true,
+    draggable: true,
+  }));
+
+  // Convert model connections to ReactFlow edges
+  const initialEdges: Edge[] = connections.map((conn) => ({
+    id: conn.id,
+    source: conn.sourceId,
+    target: conn.targetId,
+    type: "smoothstep",
+    animated: true,
+    markerEnd: {
+      type: MarkerType.ArrowClosed,
+      width: 20,
+      height: 20,
+    },
+    style: { stroke: "#3b82f6", strokeWidth: 2 },
+  }));
+
+  const [reactFlowNodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [reactFlowEdges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const reactFlowWrapper = useRef<HTMLDivElement>(null);
 
   // Handle node selection
-  const handleNodeSelect = (nodeId: string) => {
-    setSelectedNode(nodeId);
-    onNodeSelect(nodeId);
+  const onNodeClick = (_: React.MouseEvent, node: Node) => {
+    onNodeSelect(node.id);
   };
 
-  // Handle canvas drag events
-  const handleCanvasMouseMove = (e: React.MouseEvent) => {
-    if (!canvasRef.current) return;
+  // Handle node movement
+  const onNodeDragStop = (_: React.MouseEvent, node: Node) => {
+    onNodeMove(node.id, node.position);
+  };
 
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / zoom;
-    const y = (e.clientY - rect.top) / zoom;
-    setMousePosition({ x, y });
+  // Handle connection creation
+  const onConnect = useCallback(
+    (params: Connection) => {
+      if (params.source && params.target) {
+        // Create a new edge in ReactFlow
+        setEdges((eds) =>
+          addEdge(
+            {
+              ...params,
+              type: "smoothstep",
+              animated: true,
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+                width: 20,
+                height: 20,
+              },
+              style: { stroke: "#3b82f6", strokeWidth: 2 },
+            },
+            eds,
+          ),
+        );
 
-    // Handle node dragging
-    if (draggingNode) {
-      const node = nodes.find((n) => n.id === draggingNode);
-      if (node) {
-        const newPosition = {
-          x: x - dragOffset.x,
-          y: y - dragOffset.y,
-        };
-        onNodeMove(draggingNode, newPosition);
+        // Notify parent component
+        onConnectionCreate({
+          sourceId: params.source,
+          sourceOutput: params.sourceHandle || "output",
+          targetId: params.target,
+          targetInput: params.targetHandle || "input",
+        });
       }
+    },
+    [setEdges, onConnectionCreate],
+  );
+
+  // Handle edge removal
+  const onEdgeClick = (event: React.MouseEvent, edge: Edge) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (window.confirm("Are you sure you want to delete this connection?")) {
+      setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+      onConnectionRemove(edge.id);
     }
-  };
-
-  // Handle node drag start
-  const handleNodeDragStart = (e: React.MouseEvent, nodeId: string) => {
-    e.stopPropagation();
-    setDraggingNode(nodeId);
-
-    const node = nodes.find((n) => n.id === nodeId);
-    if (node && canvasRef.current) {
-      const rect = canvasRef.current.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / zoom;
-      const y = (e.clientY - rect.top) / zoom;
-      setDragOffset({
-        x: x - node.position.x,
-        y: y - node.position.y,
-      });
-    }
-  };
-
-  // Handle node drag end
-  const handleNodeDragEnd = () => {
-    setDraggingNode(null);
-  };
-
-  // Handle canvas drop for new components
-  const handleCanvasDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    if (!canvasRef.current) return;
-
-    try {
-      const data = JSON.parse(e.dataTransfer.getData("application/json"));
-      const rect = canvasRef.current.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / zoom;
-      const y = (e.clientY - rect.top) / zoom;
-
-      const newNode: Node = {
-        id: `${data.type}-${Date.now()}`,
-        type: data.type,
-        name: data.name,
-        position: { x, y },
-        inputs: ["input"],
-        outputs: ["output"],
-        config: {},
-      };
-
-      onNodeAdd(newNode);
-      handleNodeSelect(newNode.id);
-    } catch (error) {
-      console.error("Error adding new node:", error);
-    }
-  };
-
-  // Handle connection creation start
-  const handleConnectionStart = (
-    nodeId: string,
-    outputName: string,
-    e: React.MouseEvent,
-  ) => {
-    e.stopPropagation();
-    if (!canvasRef.current) return;
-
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / zoom;
-    const y = (e.clientY - rect.top) / zoom;
-
-    setCreatingConnection({
-      sourceId: nodeId,
-      sourceOutput: outputName,
-      position: { x, y },
-    });
-  };
-
-  // Handle connection creation end
-  const handleConnectionEnd = (nodeId: string, inputName: string) => {
-    if (creatingConnection && creatingConnection.sourceId !== nodeId) {
-      onConnectionCreate({
-        sourceId: creatingConnection.sourceId,
-        sourceOutput: creatingConnection.sourceOutput,
-        targetId: nodeId,
-        targetInput: inputName,
-      });
-    }
-    setCreatingConnection(null);
-  };
-
-  // Handle connection removal
-  const handleConnectionRemove = (
-    connectionId: string,
-    e: React.MouseEvent,
-  ) => {
-    e.stopPropagation();
-    onConnectionRemove(connectionId);
-  };
-
-  // Handle zoom
-  const handleZoomIn = () => {
-    setZoom((prev) => Math.min(prev + 0.1, 2));
-  };
-
-  const handleZoomOut = () => {
-    setZoom((prev) => Math.max(prev - 0.1, 0.5));
-  };
-
-  // Handle canvas drag over for drop operations
-  const handleCanvasDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
-
-  // Calculate connection path between nodes
-  const getConnectionPath = (connection: Connection) => {
-    const sourceNode = nodes.find((n) => n.id === connection.sourceId);
-    const targetNode = nodes.find((n) => n.id === connection.targetId);
-
-    if (!sourceNode || !targetNode) return "";
-
-    // Calculate output port position (at bottom of source node)
-    const sourceOutputIndex = sourceNode.outputs.indexOf(connection.sourceOutput);
-    const sourceOutputCount = sourceNode.outputs.length;
-    const sourceX = sourceNode.position.x + 75; // Center of node (150/2)
-    const sourceY = sourceNode.position.y + 120; // Bottom of node
-
-    // Calculate input port position (at top of target node)
-    const targetInputIndex = targetNode.inputs.indexOf(connection.targetInput);
-    const targetInputCount = targetNode.inputs.length;
-    const targetX = targetNode.position.x + 75; // Center of node (150/2)
-    const targetY = targetNode.position.y; // Top of node
-
-    // Create bezier curve with vertical control points
-    const controlPointOffset = Math.abs(targetY - sourceY) * 0.5;
-    return `M ${sourceX} ${sourceY} C ${sourceX} ${sourceY + controlPointOffset}, ${targetX} ${targetY - controlPointOffset}, ${targetX} ${targetY}`;
-  };
-
-  // Calculate temporary connection path during creation
-  const getTempConnectionPath = () => {
-    if (!creatingConnection) return "";
-
-    const sourceNode = nodes.find((n) => n.id === creatingConnection.sourceId);
-    if (!sourceNode) return "";
-
-    // Calculate output port position (at bottom of source node)
-    const sourceOutputIndex = sourceNode.outputs.indexOf(creatingConnection.sourceOutput);
-    const sourceOutputCount = sourceNode.outputs.length;
-    const sourceX = sourceNode.position.x + 75; // Center of node (150/2)
-    const sourceY = sourceNode.position.y + 120; // Bottom of node
-
-    // Create bezier curve to mouse position with vertical bias
-    const controlPointOffset = Math.abs(mousePosition.y - sourceY) * 0.5;
-    return `M ${sourceX} ${sourceY} C ${sourceX} ${sourceY + controlPointOffset}, ${mousePosition.x} ${mousePosition.y - controlPointOffset}, ${mousePosition.x} ${mousePosition.y}`;
   };
 
   // Handle node removal
-  const handleNodeRemove = (nodeId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (selectedNode === nodeId) {
-      setSelectedNode(null);
-      onNodeSelect(null);
-    }
-    onNodeRemove(nodeId);
+  const onNodesDelete = (nodesToDelete: Node[]) => {
+    nodesToDelete.forEach((node) => onNodeRemove(node.id));
   };
 
-  // Clean up event listeners
-  useEffect(() => {
-    const handleMouseUp = () => {
-      setDraggingNode(null);
-      if (creatingConnection) {
-        setCreatingConnection(null);
-      }
-    };
+  // Handle dropping components onto the canvas
+  const onDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+      console.log("Drop event triggered");
 
-    document.addEventListener("mouseup", handleMouseUp);
-    return () => {
-      document.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [creatingConnection]);
+      // Get the component data from the drag event
+      const componentData = event.dataTransfer.getData("application/json");
+      console.log("Component data from drop:", componentData);
+
+      if (componentData) {
+        try {
+          const component = JSON.parse(componentData);
+          console.log("Dropped component:", component);
+
+          // Get the position where the component was dropped
+          const reactFlowBounds =
+            reactFlowWrapper.current?.getBoundingClientRect();
+          if (reactFlowBounds) {
+            const position = {
+              x: event.clientX - reactFlowBounds.left,
+              y: event.clientY - reactFlowBounds.top,
+            };
+            console.log("Drop position:", position);
+
+            // Create a new node
+            const newNode: ModelNode = {
+              id: `${component.type || "layer"}-${Date.now()}`,
+              type: component.type || "layer",
+              name: component.name || "New Node",
+              position: position,
+              inputs: component.type === "input" ? [] : ["input"],
+              outputs: component.type === "output" ? [] : ["output"],
+              config: {},
+            };
+
+            console.log("Creating new node:", newNode);
+            // Add the node to the canvas
+            onNodeAdd(newNode);
+          }
+        } catch (error) {
+          console.error("Error adding node:", error);
+        }
+      } else {
+        console.warn("No component data found in the drop event");
+      }
+    },
+    [onNodeAdd],
+  );
+
+  const onDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    console.log("Dragging over canvas");
+  }, []);
 
   return (
     <div
-      className={cn(
-        "relative w-full h-full overflow-auto scrollable-area",
-        className,
-      )}
+      className={cn("w-full h-full", className)}
+      ref={reactFlowWrapper}
+      onDrop={onDrop}
+      onDragOver={onDragOver}
     >
-      {/* Zoom controls */}
-      <div className="absolute top-4 right-4 z-20 flex gap-2">
-        <Button variant="outline" size="icon" onClick={handleZoomIn}>
-          <Plus className="h-4 w-4" />
-        </Button>
-        <Button variant="outline" size="icon" onClick={handleZoomOut}>
-          <Minus className="h-4 w-4" />
-        </Button>
-      </div>
-
-      {/* Canvas */}
-      <div
-        ref={canvasRef}
-        className="w-[2000px] h-[2000px] relative"
-        onMouseMove={handleCanvasMouseMove}
-        onMouseUp={() => setDraggingNode(null)}
-        onDragOver={handleCanvasDragOver}
-        onDrop={handleCanvasDrop}
+      <ReactFlow
+        nodes={reactFlowNodes}
+        edges={reactFlowEdges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        onNodeClick={onNodeClick}
+        onNodeDragStop={onNodeDragStop}
+        onEdgeClick={onEdgeClick}
+        onNodesDelete={onNodesDelete}
+        nodeTypes={nodeTypes}
+        fitView
+        attributionPosition="bottom-right"
+        deleteKeyCode={["Backspace", "Delete"]}
+        defaultEdgeOptions={{ type: "smoothstep" }}
+        connectionLineType="smoothstep"
+        connectionLineStyle={{ stroke: "#3b82f6", strokeWidth: 2 }}
+        snapToGrid={true}
+        snapGrid={[15, 15]}
+        elementsSelectable={true}
+        selectNodesOnDrag={false}
+        zoomOnScroll={true}
+        zoomOnDoubleClick={true}
+        panOnScroll={true}
+        panOnDrag={true}
       >
-        <div
-          className="absolute top-0 left-0 w-full h-full transform-origin-center transition-transform duration-200"
-          style={{ transform: `scale(${zoom})` }}
-        >
-          {/* Grid background */}
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAwIDEwIEwgNDAgMTAgTSAxMCAwIEwgMTAgNDAgTSAwIDIwIEwgNDAgMjAgTSAyMCAwIEwgMjAgNDAgTSAwIDMwIEwgNDAgMzAgTSAzMCAwIEwgMzAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2UyZThlYiIgb3BhY2l0eT0iMC4yIiBzdHJva2Utd2lkdGg9IjEiLz48cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZTJlOGViIiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')]" />
-
-          {/* Connections */}
-          <svg className="absolute inset-0 pointer-events-none z-0">
-            {connections.map((connection) => (
-              <g key={connection.id}>
-                <path
-                  d={getConnectionPath(connection)}
-                  stroke={connection.isValid ? "#3b82f6" : "#ef4444"}
-                  strokeWidth="2"
-                  fill="none"
-                  className="pointer-events-auto"
-                  onClick={(e) => handleConnectionRemove(connection.id, e)}
-                />
-                {!connection.isValid && (
-                  <g
-                    transform={`translate(${(nodes.find((n) => n.id === connection.sourceId)?.position.x || 0) + 75}, ${(nodes.find((n) => n.id === connection.sourceId)?.position.y || 0) + 20})`}
-                  >
-                    <circle cx="0" cy="0" r="8" fill="#fee2e2" />
-                    <AlertCircle
-                      className="h-4 w-4 text-red-500"
-                      style={{ transform: "translate(-8px, -8px)" }}
-                    />
-                  </g>
-                )}
-              </g>
-            ))}
-
-            {/* Temporary connection while creating */}
-            {creatingConnection && (
-              <path
-                d={getTempConnectionPath()}
-                stroke="#3b82f6"
-                strokeWidth="2"
-                strokeDasharray="5,5"
-                fill="none"
-              />
-            )}
-          </svg>
-
-          {/* Nodes */}
-          {nodes.map((node) => (
-            <div
-              key={node.id}
-              className={cn(
-                "absolute p-4 w-[150px] rounded-md shadow-md transition-shadow",
-                selectedNode === node.id
-                  ? "ring-2 ring-primary shadow-lg"
-                  : "shadow",
-                node.type === "input"
-                  ? "bg-blue-50"
-                  : node.type === "layer"
-                    ? "bg-purple-50"
-                    : node.type === "activation"
-                      ? "bg-green-50"
-                      : node.type === "operation"
-                        ? "bg-orange-50"
-                        : "bg-white",
-              )}
-              style={{
-                left: `${node.position.x}px`,
-                top: `${node.position.y}px`,
-                cursor: draggingNode === node.id ? "grabbing" : "grab",
-                zIndex: selectedNode === node.id ? 5 : 1,
+        <Background color="#aaa" gap={16} />
+        <Controls />
+        <MiniMap
+          nodeStrokeColor={(n) => {
+            if (n.type === "custom") return "#3b82f6";
+            return "#eee";
+          }}
+          nodeColor={(n) => {
+            const type = n.data?.type || "default";
+            switch (type) {
+              case "input":
+                return "#93c5fd";
+              case "layer":
+                return "#c4b5fd";
+              case "activation":
+                return "#86efac";
+              case "operation":
+                return "#fdba74";
+              default:
+                return "#f9fafb";
+            }
+          }}
+          nodeBorderRadius={2}
+        />
+        <div className="absolute top-4 right-4 z-10">
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                const flow = document.querySelector(".react-flow");
+                if (flow) {
+                  flow.dispatchEvent(new WheelEvent("wheel", { deltaY: -100 }));
+                }
               }}
-              onClick={() => handleNodeSelect(node.id)}
-              onMouseDown={(e) => handleNodeDragStart(e, node.id)}
-              onMouseUp={handleNodeDragEnd}
             >
-              {/* Node header */}
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="text-sm font-medium truncate">{node.name}</h3>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        className="text-gray-500 hover:text-red-500 transition-colors"
-                        onClick={(e) => handleNodeRemove(node.id, e)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Remove node</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-
-              {/* Node inputs */}
-              <div className="absolute -top-2 left-0 w-full flex justify-center">
-                {node.inputs.map((input, index) => (
-                  <div
-                    key={`${node.id}-input-${index}`}
-                    className="flex flex-col items-center mx-1"
-                  >
-                    <div
-                      className="w-3 h-3 rounded-full bg-blue-500 cursor-pointer relative"
-                      onClick={() =>
-                        creatingConnection &&
-                        handleConnectionEnd(node.id, input)
-                      }
-                    />
-                    <span className="text-xs text-gray-600 mt-1">{input}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Node outputs */}
-              <div className="absolute -bottom-2 left-0 w-full flex justify-center">
-                {node.outputs.map((output, index) => (
-                  <div
-                    key={`${node.id}-output-${index}`}
-                    className="flex flex-col items-center mx-1"
-                  >
-                    <span className="text-xs text-gray-600 mb-1">{output}</span>
-                    <div
-                      className="w-3 h-3 rounded-full bg-blue-500 cursor-pointer relative"
-                      onMouseDown={(e) =>
-                        handleConnectionStart(node.id, output, e)
-                      }
-                    />
-                  </div>
-                ))}
-              </div>
-
-              {/* Node configuration preview */}
-              {node.config && Object.keys(node.config).length > 0 && (
-                <div className="mt-2 pt-2 border-t border-gray-200 text-xs text-gray-500">
-                  {Object.entries(node.config)
-                    .slice(0, 2)
-                    .map(([key, value]) => (
-                      <div key={key} className="truncate">
-                        <span className="font-medium">{key}:</span>{" "}
-                        {JSON.stringify(value)}
-                      </div>
-                    ))}
-                  {Object.keys(node.config).length > 2 && (
-                    <div className="text-xs text-gray-400">
-                      + {Object.keys(node.config).length - 2} more...
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
+              <Plus className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                const flow = document.querySelector(".react-flow");
+                if (flow) {
+                  flow.dispatchEvent(new WheelEvent("wheel", { deltaY: 100 }));
+                }
+              }}
+            >
+              <Minus className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-      </div>
+      </ReactFlow>
     </div>
   );
 };

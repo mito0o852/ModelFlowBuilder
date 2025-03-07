@@ -18,6 +18,7 @@ import {
   Settings,
   HelpCircle,
 } from "lucide-react";
+import ThemeToggle from "./ThemeToggle";
 
 interface HeaderProps {
   onSave?: () => void;
@@ -55,7 +56,7 @@ const Header = ({
             type="text"
             value={projectName}
             onChange={(e) => setProjectName(e.target.value)}
-            className="h-8 px-2 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+            className="h-8 px-2 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-primary bg-background text-foreground"
             aria-label="Project name"
           />
         </div>
@@ -101,6 +102,8 @@ const Header = ({
           <Code className="h-4 w-4 mr-2" />
           Export Code
         </Button>
+
+        <ThemeToggle />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

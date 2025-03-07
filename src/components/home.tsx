@@ -6,6 +6,7 @@ import ConfigPanel from "./ModelBuilder/ConfigPanel";
 import TestPanel from "./ModelBuilder/TestPanel";
 import CodeExportDialog from "./ModelBuilder/CodeExportDialog";
 import SaveLoadDialog from "./ModelBuilder/SaveLoadDialog";
+import Sidebar from "./ModelBuilder/Sidebar";
 
 interface Node {
   id: string;
@@ -105,19 +106,35 @@ const Home = () => {
 
   // Handler for node addition
   const handleNodeAdd = (node: Node) => {
-    setNodes((prev) => [...prev, node]);
+    // Generate a unique ID for the new node
+    const newId = `node-${Date.now()}`;
+    const newNode = {
+      ...node,
+      id: newId,
+      // Position the new node in a visible area if not specified
+      position: node.position || { x: 100, y: nodes.length * 150 + 50 },
+    };
+    console.log("Adding node:", newNode);
+    setNodes((prev) => [...prev, newNode]);
   };
 
   // Handler for node removal
   const handleNodeRemove = (nodeId: string) => {
+    console.log("Removing node:", nodeId);
     // Remove connections associated with this node
-    setConnections((prev) =>
-      prev.filter(
+    setConnections((prev) => {
+      const filtered = prev.filter(
         (conn) => conn.sourceId !== nodeId && conn.targetId !== nodeId,
-      ),
-    );
+      );
+      console.log("Remaining connections after node removal:", filtered);
+      return filtered;
+    });
     // Remove the node
-    setNodes((prev) => prev.filter((node) => node.id !== nodeId));
+    setNodes((prev) => {
+      const filtered = prev.filter((node) => node.id !== nodeId);
+      console.log("Remaining nodes after removal:", filtered);
+      return filtered;
+    });
     // Deselect if this was the selected node
     if (selectedNodeId === nodeId) {
       setSelectedNodeId(null);
@@ -163,6 +180,7 @@ const Home = () => {
 
   // Handler for connection removal
   const handleConnectionRemove = (connectionId: string) => {
+    console.log("Removing connection:", connectionId);
     setConnections((prev) => prev.filter((conn) => conn.id !== connectionId));
   };
 
@@ -230,11 +248,24 @@ model = NeuralNetwork()`;
         onTest={() => handleRunTest("[1, 28, 28]")}
       />
       <div className="flex-1 flex overflow-hidden neural-network-builder">
+        <Sidebar
+          activeTab="components"
+          onTabChange={(tab) => console.log("Tab changed to:", tab)}
+        />
         <div className="border-r border-border overflow-hidden">
           <ComponentLibrary
             onComponentSelect={(component) => {
-              // In a real app, this would create a new node based on the component
-              console.log("Selected component:", component);
+              // Create a new node based on the selected component
+              const newNode: Node = {
+                id: `${component.type}-${Date.now()}`,
+                type: component.type,
+                name: component.name,
+                position: { x: 100, y: nodes.length * 150 + 50 },
+                inputs: component.type === "input" ? [] : ["input"],
+                outputs: component.type === "output" ? [] : ["output"],
+                config: {},
+              };
+              handleNodeAdd(newNode);
             }}
           />
         </div>
@@ -259,7 +290,7 @@ model = NeuralNetwork()`;
                   id: selectedNode.id,
                   type: selectedNode.type,
                   name: selectedNode.name,
-                  params: selectedNode.config || {}
+                  params: selectedNode.config || {},
                 }}
                 onParamChange={handleParamChange}
                 onClose={() => setSelectedNodeId(null)}
@@ -270,12 +301,7 @@ model = NeuralNetwork()`;
       </div>
 
       {/* Test Panel */}
-      <TestPanel
-        onRunTest={handleRunTest}
-        testResults={testResults}
-        isModelValid={isModelValid}
-        sidebarOpen={!!selectedNode}
-      />
+      {/* Test panel removed */}
 
       {/* Dialogs */}
       {codeExportOpen && (
