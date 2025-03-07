@@ -249,25 +249,21 @@ const Canvas = ({
 
     if (!sourceNode || !targetNode) return "";
 
-    // Calculate output port position
-    const sourceOutputIndex = sourceNode.outputs.indexOf(
-      connection.sourceOutput,
-    );
+    // Calculate output port position (at bottom of source node)
+    const sourceOutputIndex = sourceNode.outputs.indexOf(connection.sourceOutput);
     const sourceOutputCount = sourceNode.outputs.length;
-    const sourceX = sourceNode.position.x + 150; // Node width
-    const sourceY =
-      sourceNode.position.y + 40 + (sourceOutputIndex / sourceOutputCount) * 40;
+    const sourceX = sourceNode.position.x + 75; // Center of node (150/2)
+    const sourceY = sourceNode.position.y + 120; // Bottom of node
 
-    // Calculate input port position
+    // Calculate input port position (at top of target node)
     const targetInputIndex = targetNode.inputs.indexOf(connection.targetInput);
     const targetInputCount = targetNode.inputs.length;
-    const targetX = targetNode.position.x;
-    const targetY =
-      targetNode.position.y + 40 + (targetInputIndex / targetInputCount) * 40;
+    const targetX = targetNode.position.x + 75; // Center of node (150/2)
+    const targetY = targetNode.position.y; // Top of node
 
-    // Create bezier curve
-    const controlPointOffset = 50;
-    return `M ${sourceX} ${sourceY} C ${sourceX + controlPointOffset} ${sourceY}, ${targetX - controlPointOffset} ${targetY}, ${targetX} ${targetY}`;
+    // Create bezier curve with vertical control points
+    const controlPointOffset = Math.abs(targetY - sourceY) * 0.5;
+    return `M ${sourceX} ${sourceY} C ${sourceX} ${sourceY + controlPointOffset}, ${targetX} ${targetY - controlPointOffset}, ${targetX} ${targetY}`;
   };
 
   // Calculate temporary connection path during creation
@@ -277,18 +273,15 @@ const Canvas = ({
     const sourceNode = nodes.find((n) => n.id === creatingConnection.sourceId);
     if (!sourceNode) return "";
 
-    // Calculate output port position
-    const sourceOutputIndex = sourceNode.outputs.indexOf(
-      creatingConnection.sourceOutput,
-    );
+    // Calculate output port position (at bottom of source node)
+    const sourceOutputIndex = sourceNode.outputs.indexOf(creatingConnection.sourceOutput);
     const sourceOutputCount = sourceNode.outputs.length;
-    const sourceX = sourceNode.position.x + 150; // Node width
-    const sourceY =
-      sourceNode.position.y + 40 + (sourceOutputIndex / sourceOutputCount) * 40;
+    const sourceX = sourceNode.position.x + 75; // Center of node (150/2)
+    const sourceY = sourceNode.position.y + 120; // Bottom of node
 
-    // Create bezier curve to mouse position
-    const controlPointOffset = 50;
-    return `M ${sourceX} ${sourceY} C ${sourceX + controlPointOffset} ${sourceY}, ${mousePosition.x - controlPointOffset} ${mousePosition.y}, ${mousePosition.x} ${mousePosition.y}`;
+    // Create bezier curve to mouse position with vertical bias
+    const controlPointOffset = Math.abs(mousePosition.y - sourceY) * 0.5;
+    return `M ${sourceX} ${sourceY} C ${sourceX} ${sourceY + controlPointOffset}, ${mousePosition.x} ${mousePosition.y - controlPointOffset}, ${mousePosition.x} ${mousePosition.y}`;
   };
 
   // Handle node removal
@@ -437,34 +430,34 @@ const Canvas = ({
               </div>
 
               {/* Node inputs */}
-              <div className="space-y-1">
+              <div className="absolute -top-2 left-0 w-full flex justify-center">
                 {node.inputs.map((input, index) => (
                   <div
                     key={`${node.id}-input-${index}`}
-                    className="flex items-center"
+                    className="flex flex-col items-center mx-1"
                   >
                     <div
-                      className="w-3 h-3 rounded-full bg-blue-500 cursor-pointer mr-2 relative -ml-5"
+                      className="w-3 h-3 rounded-full bg-blue-500 cursor-pointer relative"
                       onClick={() =>
                         creatingConnection &&
                         handleConnectionEnd(node.id, input)
                       }
                     />
-                    <span className="text-xs text-gray-600">{input}</span>
+                    <span className="text-xs text-gray-600 mt-1">{input}</span>
                   </div>
                 ))}
               </div>
 
               {/* Node outputs */}
-              <div className="space-y-1 mt-2">
+              <div className="absolute -bottom-2 left-0 w-full flex justify-center">
                 {node.outputs.map((output, index) => (
                   <div
                     key={`${node.id}-output-${index}`}
-                    className="flex items-center justify-end"
+                    className="flex flex-col items-center mx-1"
                   >
-                    <span className="text-xs text-gray-600">{output}</span>
+                    <span className="text-xs text-gray-600 mb-1">{output}</span>
                     <div
-                      className="w-3 h-3 rounded-full bg-blue-500 cursor-pointer ml-2 relative -mr-5"
+                      className="w-3 h-3 rounded-full bg-blue-500 cursor-pointer relative"
                       onMouseDown={(e) =>
                         handleConnectionStart(node.id, output, e)
                       }
