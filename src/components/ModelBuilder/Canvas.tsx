@@ -319,7 +319,7 @@ const Canvas = ({
   return (
     <div
       className={cn(
-        "relative w-full h-full overflow-hidden bg-gray-100",
+        "relative w-full h-full overflow-auto scrollable-area",
         className,
       )}
     >
@@ -336,7 +336,7 @@ const Canvas = ({
       {/* Canvas */}
       <div
         ref={canvasRef}
-        className="w-full h-full relative"
+        className="w-[2000px] h-[2000px] relative"
         onMouseMove={handleCanvasMouseMove}
         onMouseUp={() => setDraggingNode(null)}
         onDragOver={handleCanvasDragOver}

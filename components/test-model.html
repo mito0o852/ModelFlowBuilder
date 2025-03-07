@@ -1,0 +1,27 @@
+<div class="test-model-container">
+  <h3 class="test-model-title">Test Model</h3>
+  
+  <div class="test-tabs">
+    <button class="test-tab active" data-tab="input-data">Input Data</button>
+    <button class="test-tab" data-tab="test-results">Test Results</button>
+    <button class="test-tab" data-tab="validation">Validation</button>
+  </div>
+  
+  <div class="test-content active" id="input-data-content">
+    <div class="input-data-container">
+      <label for="sample-input">Sample Input:</label>
+      <input type="text" id="sample-input" class="input-data-field" value="[1, 2, 3, 4, 5]">
+      <span class="format-hint">Format: Python list or tensor shape</span>
+    </div>
+  </div>
+  
+  <div class="test-content" id="test-results-content" style="display: none;">
+    <!-- Test results content -->
+  </div>
+  
+  <div class="test-content" id="validation-content" style="display: none;">
+    <!-- Validation content -->
+  </div>
+  
+  <button class="run-test-button">Run Test</button>
+</div> 

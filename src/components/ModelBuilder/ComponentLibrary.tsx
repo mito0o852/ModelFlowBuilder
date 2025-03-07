@@ -156,34 +156,34 @@ const ComponentLibrary = ({
         onValueChange={setActiveTab}
         className="flex-1 flex flex-col"
       >
-        <TabsList className="grid grid-cols-4 mx-4 mt-2">
+        <TabsList className="grid grid-cols-4 h-auto">
           <TabsTrigger
             value="layers"
-            className="flex flex-col items-center py-2 px-1"
+            className="flex flex-col items-center py-2 px-1 h-auto"
           >
             <Layers className="h-4 w-4 mb-1" />
-            <span className="text-xs">Layers</span>
+            <span className="text-xs whitespace-nowrap">Layers</span>
           </TabsTrigger>
           <TabsTrigger
             value="activations"
-            className="flex flex-col items-center py-2 px-1"
+            className="flex flex-col items-center py-2 px-1 h-auto"
           >
             <Activity className="h-4 w-4 mb-1" />
-            <span className="text-xs">Activations</span>
+            <span className="text-xs whitespace-nowrap">Activations</span>
           </TabsTrigger>
           <TabsTrigger
             value="operations"
-            className="flex flex-col items-center py-2 px-1"
+            className="flex flex-col items-center py-2 px-1 h-auto"
           >
             <GitBranch className="h-4 w-4 mb-1" />
-            <span className="text-xs">Operations</span>
+            <span className="text-xs whitespace-nowrap">Operations</span>
           </TabsTrigger>
           <TabsTrigger
             value="custom"
-            className="flex flex-col items-center py-2 px-1"
+            className="flex flex-col items-center py-2 px-1 h-auto"
           >
             <Settings className="h-4 w-4 mb-1" />
-            <span className="text-xs">Custom</span>
+            <span className="text-xs whitespace-nowrap">Custom</span>
           </TabsTrigger>
         </TabsList>
 
@@ -194,7 +194,7 @@ const ComponentLibrary = ({
               value={category}
               className="h-full mt-0 p-0"
             >
-              <ScrollArea className="h-full px-4 py-2">
+              <ScrollArea className="h-[calc(100vh-250px)] px-4 py-2">
                 <div className="space-y-3">
                   {filterComponents(components).length > 0 ? (
                     filterComponents(components).map((component, index) => (

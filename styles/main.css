@@ -1,0 +1,48 @@
+/* Main container layout fixes */
+.neural-network-builder {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.component-library {
+  border-right: 1px solid #e0e0e0;
+  padding: 15px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.network-canvas {
+  padding: 20px;
+  overflow: auto; /* Allow scrolling in the main canvas */
+}
+
+/* Fix for the test model section */
+.test-model-container {
+  border-top: 1px solid #e0e0e0;
+  padding: 15px;
+  background-color: #f9f9f9;
+}
+
+.input-data-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.input-data-field {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.format-hint {
+  color: #666;
+  font-size: 0.85rem;
+} 

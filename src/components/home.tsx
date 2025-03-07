@@ -95,6 +95,9 @@ const Home = () => {
     details?: string;
   } | null>(null);
 
+  // State for model name
+  const [modelName, setModelName] = useState("MyNeuralNetwork");
+
   // Handler for node selection
   const handleNodeSelect = (nodeId: string | null) => {
     setSelectedNodeId(nodeId);
@@ -219,54 +222,51 @@ model = NeuralNetwork()`;
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background">
-      {/* Header */}
+    <div className="h-screen w-screen overflow-hidden flex flex-col">
       <Header
         onSave={() => setSaveLoadOpen(true)}
         onLoad={() => setSaveLoadOpen(true)}
         onExport={() => setCodeExportOpen(true)}
         onTest={() => handleRunTest("[1, 28, 28]")}
       />
-
-      {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Component Library */}
-        <ComponentLibrary
-          onComponentSelect={(component) => {
-            // In a real app, this would create a new node based on the component
-            console.log("Selected component:", component);
-          }}
-        />
-
-        {/* Canvas */}
-        <div className="flex-1 relative">
-          <Canvas
-            nodes={nodes}
-            connections={connections}
-            onNodeSelect={handleNodeSelect}
-            onNodeAdd={handleNodeAdd}
-            onNodeRemove={handleNodeRemove}
-            onNodeMove={handleNodeMove}
-            onConnectionCreate={handleConnectionCreate}
-            onConnectionRemove={handleConnectionRemove}
+      <div className="flex-1 flex overflow-hidden neural-network-builder">
+        <div className="border-r border-border overflow-hidden">
+          <ComponentLibrary
+            onComponentSelect={(component) => {
+              // In a real app, this would create a new node based on the component
+              console.log("Selected component:", component);
+            }}
           />
         </div>
-
-        {/* Config Panel */}
-        {selectedNode && (
-          <div className="absolute top-0 right-0 h-full">
-            <ConfigPanel
-              selectedNode={{
-                id: selectedNode.id,
-                type: selectedNode.type,
-                name: selectedNode.name,
-                params: selectedNode.config || {},
-              }}
-              onParamChange={handleParamChange}
-              onClose={() => setSelectedNodeId(null)}
+        <div className="flex-1 flex">
+          <div className="flex-1 relative overflow-hidden">
+            <Canvas
+              nodes={nodes}
+              connections={connections}
+              onNodeSelect={handleNodeSelect}
+              onNodeAdd={handleNodeAdd}
+              onNodeRemove={handleNodeRemove}
+              onNodeMove={handleNodeMove}
+              onConnectionCreate={handleConnectionCreate}
+              onConnectionRemove={handleConnectionRemove}
+              className="scrollable-area"
             />
           </div>
-        )}
+          {selectedNode && (
+            <div className="w-[300px] border-l border-border overflow-hidden">
+              <ConfigPanel
+                selectedNode={{
+                  id: selectedNode.id,
+                  type: selectedNode.type,
+                  name: selectedNode.name,
+                  params: selectedNode.config || {}
+                }}
+                onParamChange={handleParamChange}
+                onClose={() => setSelectedNodeId(null)}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Test Panel */}
@@ -274,15 +274,18 @@ model = NeuralNetwork()`;
         onRunTest={handleRunTest}
         testResults={testResults}
         isModelValid={isModelValid}
+        sidebarOpen={!!selectedNode}
       />
 
       {/* Dialogs */}
-      <CodeExportDialog
-        open={codeExportOpen}
-        onOpenChange={setCodeExportOpen}
-        generatedCode={generatePyTorchCode()}
-        modelName="MyNeuralNetwork"
-      />
+      {codeExportOpen && (
+        <CodeExportDialog
+          open={codeExportOpen}
+          onOpenChange={setCodeExportOpen}
+          generatedCode={generatePyTorchCode()}
+          modelName="MyNeuralNetwork"
+        />
+      )}
 
       <SaveLoadDialog
         open={saveLoadOpen}

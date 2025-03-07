@@ -35,7 +35,7 @@ const ComponentCard = ({
   return (
     <Card
       className={cn(
-        "w-[260px] h-[80px] cursor-grab active:cursor-grabbing bg-white hover:bg-gray-50 transition-colors",
+        "cursor-grab active:cursor-grabbing bg-white hover:bg-gray-50 transition-colors",
         className,
       )}
       onClick={onClick}
@@ -61,16 +61,16 @@ const ComponentCard = ({
           {IconComponent && <IconComponent className="h-5 w-5 text-primary" />}
         </div>
         <div className="flex-1 overflow-hidden">
-          <h3 className="font-medium text-sm truncate">{name}</h3>
+          <h3 className="font-medium text-sm truncate max-w-full">{name}</h3>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <p className="text-xs text-muted-foreground truncate">
+                <p className="text-xs text-muted-foreground line-clamp-1 max-w-full">
                   {description}
                 </p>
               </TooltipTrigger>
-              <TooltipContent>
-                <p className="max-w-[200px]">{description}</p>
+              <TooltipContent side="right" className="max-w-[300px]">
+                <p>{description}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
