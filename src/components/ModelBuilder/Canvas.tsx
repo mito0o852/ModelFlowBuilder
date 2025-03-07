@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef } from "react";
 import { cn } from "@/lib/utils";
-import ReactFlow, {
+import {
   Background,
   Controls,
   MiniMap,
@@ -15,9 +15,13 @@ import ReactFlow, {
   MarkerType,
   Handle,
   Position,
-} from "react-flow-renderer";
+  ReactFlow,
+  ConnectionLineType,
+  reconnectEdge,
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 import { Button } from "@/components/ui/button";
-import { Plus, Minus, Trash2 } from "lucide-react";
+import { Plus, Minus, Trash2, X } from "lucide-react";
 
 interface ModelNode {
   id: string;
@@ -52,6 +56,42 @@ interface CanvasProps {
   className?: string;
 }
 
+// Custom delete confirmation popup
+const DeleteConfirmation = ({ 
+  isOpen, 
+  onClose, 
+  onConfirm, 
+  nodeName 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  onConfirm: () => void; 
+  nodeName: string;
+}) => {
+  if (!isOpen) return null;
+  
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-sm w-full">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-medium">Delete Node</h3>
+          <button 
+            onClick={onClose}
+            className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <p className="mb-4">Are you sure you want to delete the node "{nodeName}"?</p>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="destructive" onClick={onConfirm}>Delete</Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Custom Node Component
 const CustomNode = ({
   data,
@@ -62,6 +102,8 @@ const CustomNode = ({
   selected: boolean;
   id: string;
 }) => {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  
   const nodeTypeColors = {
     input:
       "bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800 text-blue-900 dark:text-blue-100",
@@ -80,59 +122,69 @@ const CustomNode = ({
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    if (window.confirm("Are you sure you want to delete this node?")) {
-      if (data.onDelete) {
-        data.onDelete(id);
-      }
-    }
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = () => {
+    data.onDelete(id);
+    setShowDeleteConfirm(false);
   };
 
   return (
-    <div
-      className={cn(
-        "p-4 w-[180px] rounded-md shadow-md transition-all duration-200 border relative",
-        nodeColor,
-        selected ? "ring-2 ring-primary shadow-lg border-primary" : "",
-      )}
-    >
-      <div className="flex justify-between items-center mb-2">
-        <h3 className="text-sm font-medium truncate">{data.name}</h3>
-        <button
-          className="nodrag absolute top-2 right-2 p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500"
-          onClick={handleDelete}
-          type="button"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
-      </div>
-      <div className="text-xs text-muted-foreground">
-        {data.config &&
-          Object.entries(data.config).map(([key, value]) => (
-            <div key={key} className="flex justify-between">
-              <span>{key}:</span>
-              <span className="font-mono">{JSON.stringify(value)}</span>
-            </div>
-          ))}
-      </div>
+    <>
+      <div
+        className={cn(
+          "p-4 w-[180px] rounded-md shadow-md transition-all duration-200 border relative",
+          nodeColor,
+          selected ? "ring-2 ring-primary shadow-lg border-primary" : "",
+        )}
+      >
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="text-sm font-medium truncate">{data.name}</h3>
+          <button
+            className="nodrag absolute top-2 right-2 p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500"
+            onClick={handleDelete}
+            type="button"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+        <div className="text-xs text-muted-foreground">
+          {data.config &&
+            Object.entries(data.config).map(([key, value]) => (
+              <div key={key} className="flex justify-between">
+                <span>{key}:</span>
+                <span className="font-mono">{JSON.stringify(value)}</span>
+              </div>
+            ))}
+        </div>
 
-      {/* Use proper ReactFlow Handle components for connections */}
-      {data.inputs && data.inputs.length > 0 && (
-        <Handle
-          type="target"
-          position={Position.Top}
-          id="input"
-          style={{ background: "#3b82f6", width: "10px", height: "10px" }}
-        />
-      )}
-      {data.outputs && data.outputs.length > 0 && (
-        <Handle
-          type="source"
-          position={Position.Bottom}
-          id="output"
-          style={{ background: "#3b82f6", width: "10px", height: "10px" }}
-        />
-      )}
-    </div>
+        {/* Use proper ReactFlow Handle components for connections */}
+        {data.inputs && data.inputs.length > 0 && (
+          <Handle
+            type="target"
+            position={Position.Top}
+            id="input"
+            style={{ background: "#3b82f6", width: "10px", height: "10px" }}
+          />
+        )}
+        {data.outputs && data.outputs.length > 0 && (
+          <Handle
+            type="source"
+            position={Position.Bottom}
+            id="output"
+            style={{ background: "#3b82f6", width: "10px", height: "10px" }}
+          />
+        )}
+      </div>
+      
+      <DeleteConfirmation 
+        isOpen={showDeleteConfirm} 
+        onClose={() => setShowDeleteConfirm(false)} 
+        onConfirm={confirmDelete}
+        nodeName={data.name}
+      />
+    </>
   );
 };
 
@@ -151,6 +203,8 @@ const Canvas = ({
   onConnectionRemove = () => {},
   className = "",
 }: CanvasProps) => {
+  const edgeReconnectSuccessful = useRef(true);
+  
   // Convert model nodes to ReactFlow nodes
   const initialNodes: Node[] = nodes.map((node) => ({
     id: node.id,
@@ -162,10 +216,24 @@ const Canvas = ({
       inputs: node.inputs,
       outputs: node.outputs,
       config: node.config,
-      onDelete: onNodeRemove,
+      onDelete: (nodeId: string) => {
+        // Remove all connections associated with this node
+        const edgesToRemove = reactFlowEdges.filter(
+          (edge) => edge.source === nodeId || edge.target === nodeId
+        );
+        edgesToRemove.forEach((edge) => {
+          onConnectionRemove(edge.id);
+        });
+        
+        // Remove the node from React Flow's state
+        setNodes((nodes) => nodes.filter((n) => n.id !== nodeId));
+        
+        // Remove the node from parent state
+        onNodeRemove(nodeId);
+      },
     },
-    sourcePosition: "bottom",
-    targetPosition: "top",
+    sourcePosition: Position.Bottom,
+    targetPosition: Position.Top,
     connectable: true,
     draggable: true,
   }));
@@ -233,19 +301,47 @@ const Canvas = ({
     [setEdges, onConnectionCreate],
   );
 
+  // Handle edge reconnection
+  const onReconnectStart = useCallback(() => {
+    edgeReconnectSuccessful.current = false;
+  }, []);
+
+  const onReconnect = useCallback((oldEdge: Edge, newConnection: Connection) => {
+    edgeReconnectSuccessful.current = true;
+    setEdges((els) => reconnectEdge(oldEdge, newConnection, els));
+  }, [setEdges]);
+
+  const onReconnectEnd = useCallback((event: MouseEvent | TouchEvent, edge: Edge) => {
+    if (!edgeReconnectSuccessful.current) {
+      setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+      onConnectionRemove(edge.id);
+    }
+    edgeReconnectSuccessful.current = true;
+  }, [setEdges, onConnectionRemove]);
+
   // Handle edge removal
   const onEdgeClick = (event: React.MouseEvent, edge: Edge) => {
     event.preventDefault();
     event.stopPropagation();
-    if (window.confirm("Are you sure you want to delete this connection?")) {
-      setEdges((eds) => eds.filter((e) => e.id !== edge.id));
-      onConnectionRemove(edge.id);
-    }
+    // Remove the connection without confirmation
+    setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+    onConnectionRemove(edge.id);
   };
 
   // Handle node removal
   const onNodesDelete = (nodesToDelete: Node[]) => {
-    nodesToDelete.forEach((node) => onNodeRemove(node.id));
+    nodesToDelete.forEach((node) => {
+      // Remove all connections associated with this node
+      const edgesToRemove = reactFlowEdges.filter(
+        (edge) => edge.source === node.id || edge.target === node.id
+      );
+      edgesToRemove.forEach((edge) => {
+        onConnectionRemove(edge.id);
+      });
+      
+      // Remove the node from parent state
+      onNodeRemove(node.id);
+    });
   };
 
   // Handle dropping components onto the canvas
@@ -258,44 +354,78 @@ const Canvas = ({
       const componentData = event.dataTransfer.getData("application/json");
       console.log("Component data from drop:", componentData);
 
-      if (componentData) {
-        try {
-          const component = JSON.parse(componentData);
-          console.log("Dropped component:", component);
+      try {
+        const component = JSON.parse(componentData);
+        console.log("Dropped component:", component);
 
-          // Get the position where the component was dropped
-          const reactFlowBounds =
-            reactFlowWrapper.current?.getBoundingClientRect();
-          if (reactFlowBounds) {
-            const position = {
-              x: event.clientX - reactFlowBounds.left,
-              y: event.clientY - reactFlowBounds.top,
-            };
-            console.log("Drop position:", position);
+        // Calculate the drop position relative to the canvas
+        const reactFlowBounds = reactFlowWrapper.current?.getBoundingClientRect();
+        if (!reactFlowBounds) return;
 
-            // Create a new node
-            const newNode: ModelNode = {
-              id: `${component.type || "layer"}-${Date.now()}`,
-              type: component.type || "layer",
-              name: component.name || "New Node",
-              position: position,
-              inputs: component.type === "input" ? [] : ["input"],
-              outputs: component.type === "output" ? [] : ["output"],
-              config: {},
-            };
+        const position = {
+          x: event.clientX - reactFlowBounds.left,
+          y: event.clientY - reactFlowBounds.top,
+        };
+        console.log("Drop position:", position);
 
-            console.log("Creating new node:", newNode);
-            // Add the node to the canvas
-            onNodeAdd(newNode);
-          }
-        } catch (error) {
-          console.error("Error adding node:", error);
-        }
-      } else {
-        console.warn("No component data found in the drop event");
+        // Generate a unique ID for the new node
+        const id = `${component.type}-${Date.now()}`;
+
+        // Create a new node object
+        const newNode: ModelNode = {
+          id,
+          type: component.type,
+          name: component.name,
+          position,
+          inputs: ["input"],
+          outputs: ["output"],
+          config: component.config || {},
+        };
+        console.log("Creating new node:", newNode);
+
+        // Add the new node to ReactFlow's state
+        const reactFlowNode: Node = {
+          id: newNode.id,
+          type: "custom",
+          position: newNode.position,
+          data: {
+            name: newNode.name,
+            type: newNode.type,
+            inputs: newNode.inputs,
+            outputs: newNode.outputs,
+            config: newNode.config,
+            onDelete: (nodeId: string) => {
+              // Remove all connections associated with this node
+              const edgesToRemove = reactFlowEdges.filter(
+                (edge) => edge.source === nodeId || edge.target === nodeId
+              );
+              edgesToRemove.forEach((edge) => {
+                onConnectionRemove(edge.id);
+              });
+              
+              // Remove the node from React Flow's state
+              setNodes((nodes) => nodes.filter((n) => n.id !== nodeId));
+              
+              // Remove the node from parent state
+              onNodeRemove(nodeId);
+            },
+          },
+          sourcePosition: Position.Bottom,
+          targetPosition: Position.Top,
+          connectable: true,
+          draggable: true,
+        };
+
+        // Update the React Flow nodes state
+        setNodes((nds) => nds.concat(reactFlowNode));
+
+        // Notify parent component
+        onNodeAdd(newNode);
+      } catch (error) {
+        console.error("Error adding component:", error);
       }
     },
-    [onNodeAdd],
+    [reactFlowEdges, onConnectionRemove, onNodeRemove, onNodeAdd, setNodes],
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -321,12 +451,15 @@ const Canvas = ({
         onNodeDragStop={onNodeDragStop}
         onEdgeClick={onEdgeClick}
         onNodesDelete={onNodesDelete}
+        onReconnectStart={onReconnectStart}
+        onReconnect={onReconnect}
+        onReconnectEnd={onReconnectEnd}
         nodeTypes={nodeTypes}
         fitView
         attributionPosition="bottom-right"
         deleteKeyCode={["Backspace", "Delete"]}
         defaultEdgeOptions={{ type: "smoothstep" }}
-        connectionLineType="smoothstep"
+        connectionLineType={ConnectionLineType.SmoothStep}
         connectionLineStyle={{ stroke: "#3b82f6", strokeWidth: 2 }}
         snapToGrid={true}
         snapGrid={[15, 15]}
